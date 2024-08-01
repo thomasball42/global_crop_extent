@@ -6,12 +6,12 @@ import os
 import tqdm
 import multiprocessing
 
-NUM_WORKERS = 80
+NUM_WORKERS = 120
 year = 2019
 target_dir = "data/potapov2022"
 out_path = f"data/processed/Global_cropland_{year}.tif"
 dst_crs = 'EPSG:4326'
-tile_size = 10000
+tile_size = 18000
 
 def get_total_bounds_and_res(files):
     with rasterio.open(files[0]) as src:
@@ -25,16 +25,29 @@ def get_total_bounds_and_res(files):
                 max(bounds[2], src.bounds.right),
                 max(bounds[3], src.bounds.top)
             )
+
     return bounds, res
 
 def process_tile(args):
     i, j, tile_width, tile_height, out_meta, f = args
     window = Window(i * tile_width, j * tile_height, tile_width, tile_height)
     mosaic_tile = np.zeros((out_meta['count'], tile_height, tile_width), dtype=out_meta['dtype'])
+    
     for file in f:
         with rasterio.open(file) as src:
-            tile_window = src.read(window=window, out_shape=(out_meta['count'], tile_height, tile_width))
-            mosaic_tile += tile_window
+            src_width = src.width
+            src_height = src.height
+            col_off = max(window.col_off, 0)
+            row_off = max(window.row_off, 0)
+            width = min(window.width, src_width - col_off)
+            height = min(window.height, src_height - row_off)
+
+            if width > 0 and height > 0:
+                src_window = Window(col_off, row_off, width, height)
+                out_shape = (out_meta['count'], height, width)
+                tile_window = src.read(window=src_window, out_shape=out_shape)
+                mosaic_tile[:, :height, :width] += tile_window
+                
     return mosaic_tile, window
 
 f = []
