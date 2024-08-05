@@ -1,8 +1,6 @@
 import rasterio
 from rasterio.enums import Resampling
 import rasterio.windows
-# from rasterio.windows import Window
-# from rasterio.windows import from_bounds as window_from_bounds
 from rasterio.transform import from_bounds
 import numpy as np
 import os
@@ -10,16 +8,19 @@ import tqdm
 import multiprocessing
 import sys
 
-NUM_WORKERS = 10
-input_raster = "data/jung/iucn_habitatclassification_composite_lvl2_ver004.tif"
-target_raster = "/maps/tsb42/bd_opp_cost/v4/agri_intersect/inputs/deltap_all_species.tif" ## TARGET A RASTER WITH A RES YOU WANT
-out_path = "data/processed/jung_lvl2_1arc.tif"
-dst_crs = 'EPSG:4326'
-tile_size = 1000
-scale_div = 5
+# Be very careful with works and tilesize. 40 workers and 200 ts works for ~10G rasters
+NUM_WORKERS = 40
+tile_size = 200
 
+# input_raster = "data/jung/iucn_habitatclassification_composite_lvl2_ver004.tif"
+input_raster = sys.argv[1]
+target_raster = "/maps/tsb42/bd_opp_cost/v4/agri_intersect/inputs/deltap_all_species.tif" ## TARGET A RASTER WITH A RES YOU WANT
+out_path = f"data/1arc/Global_cropland_{os.path.split(input_raster)[-1].split('.')[0].split('_')[-1]}_1arc.tif"
+dst_crs = 'EPSG:4326'
+scale_div = 5 #This is a bit janky, use e.g. scale_div=5 and a target raster of 5arcmin gets you to 1arcmin
 resampling_method = Resampling.nearest ### CORRECT SAMPLING ESSENTIAL
 
+print(f"Processing {input_raster}...")
 def get_target_size_trans_bounds_res(target_raster, scale_div):
     """This is a bit janky, use e.g. scale_div=5 and a target raster of 5arcmin gets you to 1arcmin"""
     with rasterio.open(target_raster) as src:
@@ -35,14 +36,13 @@ def get_target_size_trans_bounds_res(target_raster, scale_div):
 def process_tile(args):
     """This might break in cases where the resolutions aren't divisible"""
     i, j, tile_width, tile_height, out_meta = args
-
     output_window = rasterio.windows.Window(i * tile_width, j * tile_height, tile_width, tile_height)
     output_window_bounds = rasterio.windows.bounds(output_window, transform=out_meta['transform'])
-    
     with rasterio.open(input_raster) as src:
         in_window = rasterio.windows.from_bounds(*output_window_bounds, transform=src.transform)
+        in_window = in_window.round_lengths().round_offsets()
         data = src.read(window=in_window, out_shape=(
-            src.count, tile_height, tile_width), resampling=resampling_method)
+            src.count, in_window.height, in_window.width), resampling=resampling_method)
     return data, output_window
 
 target_width, target_height, target_transform, target_crs, total_bounds, res = get_target_size_trans_bounds_res(target_raster, scale_div)
