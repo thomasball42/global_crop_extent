@@ -5,9 +5,10 @@ import numpy as np
 import os
 import tqdm
 import multiprocessing
+import sys
 
 NUM_WORKERS = 120
-year = 2019
+year = sys.argv[1]
 target_dir = "data/potapov2022"
 out_path = f"data/processed/Global_cropland_{year}.tif"
 dst_crs = 'EPSG:4326'
