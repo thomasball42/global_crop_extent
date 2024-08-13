@@ -1,8 +1,7 @@
+"""This script only works 20% of the time.. using gdalwarp instead..."""
 import rasterio
 from rasterio.enums import Resampling
 import rasterio.windows
-# from rasterio.windows import Window
-# from rasterio.windows import from_bounds as window_from_bounds
 from rasterio.transform import from_bounds
 import numpy as np
 import os
@@ -13,7 +12,7 @@ import sys
 NUM_WORKERS = 10
 input_raster = "data/jung/iucn_habitatclassification_composite_lvl2_ver004.tif"
 target_raster = "/maps/tsb42/bd_opp_cost/v4/agri_intersect/inputs/deltap_all_species.tif" ## TARGET A RASTER WITH A RES YOU WANT
-out_path = "data/processed/jung_lvl2_1arc.tif"
+out_path = "data/1arc/jung_composite_lvl2_1arc.tif"
 dst_crs = 'EPSG:4326'
 tile_size = 1000
 scale_div = 5
